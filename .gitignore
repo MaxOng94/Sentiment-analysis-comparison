@@ -8,6 +8,7 @@ __pycache__/
 # Jupyter Notebook
 .ipynb_checkpoints
 
+models/
 
 distilbert/
 results/
