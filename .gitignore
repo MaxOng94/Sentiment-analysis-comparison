@@ -9,9 +9,5 @@ __pycache__/
 .ipynb_checkpoints
 
 data/
-
 models/
-
-distilbert/
-results/
-runs/
+Plots/
