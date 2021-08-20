@@ -8,7 +8,7 @@ import torch
 from sklearn.model_selection import train_test_split
 from transformers import DistilBertTokenizerFast, Trainer, TrainingArguments, DistilBertForSequenceClassification
 import stanza
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import precision_score, f1_score
 from training.transformer_utils import customDataset
 from tqdm import tqdm
 
@@ -65,8 +65,8 @@ class base:
         df["pred"]= df["pred"].astype("int32")
 
         f1 = f1_score(y_true =df[LABEL_COL] , y_pred =df["pred"] , average = "macro")
-        acc = accuracy_score(y_true =df[LABEL_COL] , y_pred =df["pred"])
-        metric_dictionary = {"Accuracy" : acc, "F1": f1}
+        acc = precision_score(y_true =df[LABEL_COL] , y_pred =df["pred"], average = "macro")
+        metric_dictionary = {"Macro Precision" : acc, "F1": f1}
         return metric_dictionary
 
 
@@ -215,7 +215,7 @@ This transformer class is merely encoding the t
 """
 
 
-batch_size = 4
+batch_size = 16
 
 # because this is uncased, we need to lowercase the data
 
@@ -230,8 +230,8 @@ class distilbertSenti(base):
 
         super(distilbertSenti, self).__init__()
 
-        tokenizer_config_path = f"{file_path}/tokenizer_config"
-        model_config_path = f"{file_path}/model_config"
+        tokenizer_config_path = f"{file_path.parent.parent}/tokenizer/tokenizer_config"
+        model_config_path = f"{file_path}"
 
         try:
             self.tokenizer = DistilBertTokenizerFast.from_pretrained(tokenizer_config_path)
@@ -252,10 +252,10 @@ class distilbertSenti(base):
         #text input to tokenizer must of type `str` (single example), `List[str]` (batch or single pretokenized example) or `List[List[str]]` (batch of pretokenized examples).
         encodings = self.tokenizer(list_text, truncation = True, padding=True)
 
-        #labels = df[LABEL_COL].tolist()
+        labels = df[LABEL_COL].tolist()
 
         # pytorch's dataset class
-        dataset = customDataset(encodings)#, labels)
+        dataset = customDataset(encodings,labels)
         dataloader = DataLoader(dataset = dataset, batch_size = batch_size, shuffle = True)
 
         device = torch.device("cuda:0" if torch.cuda.is_available else "cpu")
@@ -268,8 +268,8 @@ class distilbertSenti(base):
 
         # empty list for prediction to be appended into
         pred_list = []
-        # scores list for predicted scores to be appended into
-        pred_scores_list = []
+        # list for true labels to be appended into, because we turn shuffle = True in data loader
+        true = []
 
         with torch.no_grad():  # so will not update
 
@@ -280,9 +280,9 @@ class distilbertSenti(base):
             for _, data in loop:
                 input_ids = data["input_ids"].to(device)
                 masks = data["attention_mask"].to(device)
-                #labels = data["labels"].to(device)
+                labels = data["labels"].to(device)
 
-                outputs = self.model(input_ids, masks)# , labels = labels)
+                outputs = self.model(input_ids, masks, labels = labels)
                 # information about model outputs: https://huggingface.co/transformers/main_classes/output.html
 
                 # sample output:
@@ -293,33 +293,20 @@ class distilbertSenti(base):
 
                 logits = outputs["logits"]
 
-                # dtype: torch.tensors
-                scores = softmax(logits, dim =1)
-                # sample output from torch.max :torch.return_types.max(values=tensor([0.2129]),indices=tensor([3]))
-
                 # unpack into pred_scores and pred
-                pred_scores, pred = torch.max(scores,dim =1)
+                predicted_labels = torch.argmax(logits, dim = 1)
 
-                pred_scores = pred_scores.cpu().numpy().tolist()
-                pred = pred.cpu().numpy().tolist()
+                # appends the prediction into an empty list
+                pred_list.extend(predicted_labels.cpu().numpy())
+                # appends the true labels into empty list
+                true.extend(data["labels"])
 
-                # appends the batch pred into an empty list
-                pred_list.append(pred)
-                pred_scores_list.append(pred_scores)
-
-            # flatten the nested list in pred_list
-            pred_flat_list = [item for sublist in pred_list for item in sublist]
-            pred_scores_flat_list = [item for sublist in pred_scores_list for item in sublist]
+        df[LABEL_COL] = true
+        df["pred"] = pred_list
 
 
 
-
-            df["pred"]= pd.Series(pred_flat_list)
-            df["pred_scores"] = pd.Series(pred_scores_flat_list)
-
-
-
-            return df["pred"]
+        return df["pred"]
 
 
 
