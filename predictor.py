@@ -45,7 +45,7 @@ METHODS = {
     #========================
     "distilbert":{
         "class":"distilbertSenti",
-        "model": "distilbert"},
+        "model": "distilbert/weight_decay=0.5"},
     #========================
     # pretrained
     #====================
