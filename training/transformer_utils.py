@@ -11,7 +11,7 @@ class customDataset(Dataset):
     def __getitem__(self, idx):
         item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
         if self.labels is not None:
-            item['labels'] = torch.tensor(int(self.labels[idx]))
+            item['labels'] = torch.tensor(self.labels[idx])
         return item
 
     def __len__(self):
