@@ -23,7 +23,7 @@ import timeit
 
 # Path to train and test data
 TRAIN_PATH = "data/label_data.csv"
-TEST_PATH = "data/label_data.csv"
+# TEST_PATH = "data/label_data.csv"
 LABEL_COL = "class"
 TEXT_COL = "comment"
 
@@ -92,12 +92,12 @@ def make_dirs(path:str)->  None:
 
 
 # method, test_file, lower_case from args.method, args.test_file, args.lower_case
-def run_classifier(method: str ,test_file: str, lower_case:bool = False,model_path:str = None):
+def run_classifier(method: str ,train_file: str, lower_case:bool = False,model_path:str = None):
     class_ = get_class(method)
     # eg: classifiers.StanzaSenti
     # requires to have file when initializaing
     method_obj = class_(model_path)
-    test_df = method_obj.predict(test_file)
+    test_df = method_obj.predict(train_file)
     # run timeit here to get the time for 5 iterations
     #time_taken = timeit.timeit("method_obj.predict(test_file)", globals = globals(), number =5)
     metric_dictionary = method_obj.accuracy(test_df)
@@ -121,7 +121,7 @@ def create_plots(method: str,df: pd.DataFrame) -> None:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--train", type = str, default = TRAIN_PATH, help = "Train data file")
-    parser.add_argument("--test", type = str, default = TEST_PATH, help = "Test data file" )
+    # parser.add_argument("--test", type = str, default = TEST_PATH, help = "Test data file" )
     parser.add_argument("--method", required = True, type =str, help = "method for generating sentiment",nargs = '+')
     parser.add_argument("--lower", action = "store_true", help = "Flag to convert test data to lower case(for classifiers that benefit from lower-casing)")
     parser.add_argument("--model", type =str, help = "Trained classifier model file or path (str)", default = None)
@@ -136,13 +136,13 @@ def main():
         if method not in METHODS.keys():
             print("Please choose from the existing available model. {}".format(list(METHODS.keys())))
         else:
-            test_file = args.test
+            train_file = args.train
             # need to split distilbert vs the rest
             if method != "distilbert":
-                test_df, metric_dictionary = run_classifier(method, test_file, lower_case)
+                test_df, metric_dictionary = run_classifier(method, train_file, lower_case)
                 create_plots(method, test_df)
                 # taken from here: https://stackoverflow.com/questions/5086430/how-to-pass-parameters-of-a-function-when-using-timeit-timer
-                time_taken = timeit.Timer(lambda: run_classifier(method, test_file, lower_case)).timeit(number =1)
+                time_taken = timeit.Timer(lambda: run_classifier(method, train_file, lower_case)).timeit(number =1)
                 metric_dictionary["computation_time"]=time_taken
                 df = pd.DataFrame(data = metric_dictionary, index = [method])
                 list_of_df.append(df) # appends dfs to list
@@ -151,9 +151,9 @@ def main():
                 try:
                     models = Path('models')
                     model_path = models / args_model_path
-                    test_df, metric_dictionary =run_classifier(method, test_file, lower_case = True,model_path= model_path)
+                    test_df, metric_dictionary =run_classifier(method, train_file, lower_case = True,model_path= model_path)
                     create_plots(method,test_df)
-                    time_taken = timeit.Timer(lambda: run_classifier(method, test_file, lower_case= True,model_path= model_path)).timeit(number =1)
+                    time_taken = timeit.Timer(lambda: run_classifier(method, train_file, lower_case= True,model_path= model_path)).timeit(number =1)
                     metric_dictionary["computation_time"]=time_taken
                     df = pd.DataFrame(data = metric_dictionary, index = [method])
                     list_of_df.append(df)

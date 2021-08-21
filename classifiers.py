@@ -11,6 +11,7 @@ import stanza
 from sklearn.metrics import precision_score, f1_score
 from training.transformer_utils import customDataset
 from tqdm import tqdm
+from typing import TypedDict
 
 #========================
 # set dataset labels as variables to adapt to other datasets easily
@@ -43,11 +44,19 @@ class base:
 
             print("No files found. Check the data directory for files.")
 
+    def split_train_test(self, df:pd.DataFrame) ->pd.DataFrame:
+
+        train_texts, val_texts, train_labels, val_labels = train_test_split(df[TEXT_COL], df[LABEL_COL], test_size=.2,random_state = 42)
+        train_df = pd.DataFrame(zip(train_labels,train_texts),columns = [LABEL_COL,TEXT_COL])
+        test_df = pd.DataFrame(zip(val_labels,val_texts),columns = [LABEL_COL,TEXT_COL])
+
+        return train_df, test_df
 
 
 
 
-    def accuracy(self, df:pd.DataFrame) -> None:
+
+    def accuracy(self, df:pd.DataFrame) -> TypedDict:
 
         """
         This function will return an accuracy score and a F1 score.
@@ -63,6 +72,7 @@ class base:
         df[LABEL_COL]= df[LABEL_COL].astype("int32")
 
         df["pred"]= df["pred"].astype("int32")
+
 
         f1 = f1_score(y_true =df[LABEL_COL] , y_pred =df["pred"] , average = "macro")
         acc = precision_score(y_true =df[LABEL_COL] , y_pred =df["pred"], average = "macro")
@@ -96,15 +106,15 @@ class TextBlobSenti(base):
             return 2
 
 
-    def predict(self, test_file: str, lower_case: bool=False, train_file: str=None) -> pd.DataFrame:
+    def predict(self,train_file: str,lower_case: bool=False) -> pd.DataFrame:
 
-        # only use test_file, since there is no training
-        test_df = self.read_data(test_file, lower_case)
+        df = self.read_data(train_file, lower_case)
 
+        train_df,test_df = self.split_train_test(df)
         test_df["score"] = self.score(test_df)
 
         # we will bin this to 5 classes, because the number of classes we have is 5. We can change this accordingly if need be
-        test_df["pred"]= test_df["score"].apply(self.score)
+        test_df["pred"]= test_df["score"].apply(self.score_to_pred)
 
         test_df = test_df.drop(["score"],axis = 1)
 
@@ -140,11 +150,12 @@ class VaderSenti(base):
             return 2
 
 
-    # predict should take in testfile
-    def predict(self, test_file: str, lower_case: bool=False, train_file: str=None) -> pd.DataFrame:
 
-        # only use test_df, since there is no training
-        test_df= self.read_data(test_file)
+    def predict(self,train_file: str,lower_case: bool=False) -> pd.DataFrame:
+
+        df = self.read_data(train_file, lower_case)
+
+        train_df,test_df = self.split_train_test(df)
 
         test_df["score"] = self.score(test_df)
 
@@ -186,11 +197,12 @@ class afinnSenti(base):
             return 2
 
 
-    # predict should take in textfile
-    def predict(self, test_file: str, lower_case: bool=False, train_file: str=None) -> pd.DataFrame:
+    def predict(self,train_file: str,lower_case: bool=False) -> pd.DataFrame:
 
-        # only use test_file, since there is no training
-        test_df= self.read_data(test_file)
+        df = self.read_data(train_file, lower_case)
+
+        train_df,test_df = self.split_train_test(df)
+
         test_df["score"] = self.score(test_df)
 
         # we will bin this to 5 classes, because the number of classes we have is 5. We can change this accordingly if need be
@@ -310,9 +322,11 @@ class distilbertSenti(base):
 
 
 
-    def predict(self, test_file:str, lower_case: bool=False, train_file: str=None) ->pd.DataFrame:
+    def predict(self,train_file: str,lower_case: bool=False) -> pd.DataFrame:
 
-        test_df = self.read_data(test_file, lower_case=lower_case)
+        df = self.read_data(train_file, lower_case)
+
+        train_df,test_df = self.split_train_test(df)
 
         test_df["pred"] = self.score(test_df)
 
@@ -349,12 +363,13 @@ class StanzaSenti(base):
         return df["score"]
 
 
-    # predict should take in textfile, because we are running everything in command line
-    # we have textfiles saved to use, but not dataframe saved in data directory
-    def predict(self, test_file: str, lower_case: bool=False, train_file: str=None) -> pd.DataFrame:
 
-        # only use test_df, since there is no training
-        test_df = self.read_data(test_file, lower_case)
+    def predict(self,train_file: str,lower_case: bool=False) -> pd.DataFrame:
+
+        df = self.read_data(train_file, lower_case)
+
+        train_df,test_df = self.split_train_test(df)
+
 
         test_df["score"] = self.score(test_df)
 

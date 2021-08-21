@@ -54,7 +54,7 @@ def main():
     train_df = read_data(train_file, LABEL_COL,TEXT_COL,lower_case = True)
     labels = train_df[LABEL_COL]
 
-    train_texts, val_texts, train_labels, val_labels = train_test_split(train_df[TEXT_COL], train_df[LABEL_COL], test_size=.2)
+    train_texts, val_texts, train_labels, val_labels = train_test_split(train_df[TEXT_COL], train_df[LABEL_COL], test_size=.2,random_state = 42)
 
     train_texts = train_texts.tolist()
     val_texts = val_texts.tolist()
